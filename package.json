@@ -1,0 +1,22 @@
+{
+  "name": "unified-mcp",
+  "version": "0.2.0",
+  "description": "OpenMemory と Cipher を束ねるラッパー MCP サーバー",
+  "main": "unified-mcp.js",
+  "scripts": {
+    "start": "node unified-mcp.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "mcp-remote": "^0.1.38"
+  },
+  "keywords": [
+    "mcp",
+    "openmemory",
+    "cipher",
+    "memory"
+  ],
+  "license": "MIT"
+}
