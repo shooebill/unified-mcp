@@ -1,6 +1,6 @@
 # unified-mcp
 
-OpenMemory と Cipher を束ねるラッパー MCP サーバー。  
+OpenMemory と Cipher を束ねるラッパー MCP サーバー。
 `add_memories` / `search_memory` の1回の呼び出しで両方に同時に記録・検索できる。
 
 ## 構成
@@ -9,8 +9,8 @@ OpenMemory と Cipher を束ねるラッパー MCP サーバー。
 Claude Desktop (stdio)
     ↓
 unified-mcp.js
-    ├→ OpenMemory（mcp-remote → your-openmemory-host:8765）
-    └→ Cipher（stdio → npm run mcp）
+    ├→ OpenMemory（mcp-remote → localhost:8765）
+    └→ Cipher（stdio）
 ```
 
 ## セットアップ
@@ -21,24 +21,45 @@ Node.js のみ必要。`npm install` 不要。
 
 ### 2. claude_desktop_config.json
 
+#### macOS
+
 ```json
 {
   "mcpServers": {
     "unified-memory": {
       "command": "node",
-      "args": ["C:\\path\\to\\unified-mcp.js"],
+      "args": ["<path-to>/unified-mcp.js"],
       "env": {
-        "OPENMEMORY_URL": "http://your-openmemory-host:8765/mcp/claude/sse/ubuntu",
-        "CIPHER_CWD": "C:\\path\\to\\cipher",
+        "PATH": "<node-bin-dir>:/usr/local/bin:/usr/bin:/bin",
+        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+        "CIPHER_CMD": "<node-bin-dir>/cipher",
+        "CIPHER_CWD": "<path-to>/cipher",
+        "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
+        "NPX_PATH": "<node-bin-dir>/npx",
+        "OPENAI_API_KEY": "sk-proj-..."
+      }
+    }
+  }
+}
+```
+
+- `<node-bin-dir>`: nodebrew 等の bin ディレクトリ（例: `~/.nodebrew/current/bin`）
+- `CIPHER_AGENT_CONFIG` を指定すると `cipher --mode mcp --agent <config>` で直接起動
+- `NPX_PATH` を指定すると、そのディレクトリが PATH に自動追加される
+
+#### Windows
+
+```json
+{
+  "mcpServers": {
+    "unified-memory": {
+      "command": "node",
+      "args": ["<path-to>\\unified-mcp.js"],
+      "env": {
+        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+        "CIPHER_CMD": "npm.cmd",
+        "CIPHER_CWD": "<path-to>\\cipher",
         "OPENAI_API_KEY": "sk-proj-...",
-        "CIPHER_LOG_LEVEL": "silent",
-        "NODE_ENV": "production",
-        "VECTOR_STORE_TYPE": "qdrant",
-        "VECTOR_STORE_URL": "http://your-qdrant-host:6333",
-        "VECTOR_STORE_COLLECTION": "cursor_cipher_memory",
-        "VECTOR_STORE_DIMENSION": "1536",
-        "VECTOR_STORE_DISTANCE": "Cosine",
-        "DISABLE_REFLECTION_MEMORY": "true",
         "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32"
       }
     }
@@ -46,13 +67,18 @@ Node.js のみ必要。`npm install` 不要。
 }
 ```
 
+- `CIPHER_AGENT_CONFIG` 未指定時は `npm run mcp` で起動（Windows 向け）
+
 ### 3. 環境変数
 
 | 変数 | 説明 | 必須 |
 |------|------|------|
 | `OPENMEMORY_URL` | OpenMemory の mcp-remote エンドポイント | ✅ |
-| `CIPHER_CWD` | Cipher の npm プロジェクトディレクトリ | ✅ |
+| `CIPHER_CMD` | Cipher の実行コマンド（macOS: フルパス, Windows: `npm.cmd`） | ✅ |
+| `CIPHER_CWD` | Cipher の作業ディレクトリ | ✅ |
 | `OPENAI_API_KEY` | Cipher が使う OpenAI API キー | ✅ |
+| `NPX_PATH` | npx のフルパス（macOS でPATH が通らない場合） | |
+| `CIPHER_AGENT_CONFIG` | cipher.yml のパス（指定時は直接起動） | |
 
 ## ツール
 
@@ -64,5 +90,5 @@ Node.js のみ必要。`npm install` 不要。
 ## 前提
 
 - [OpenMemory](https://github.com/mem0ai/mem0) が Docker で起動済み
-- [Cipher](https://github.com/byterover/cipher) が `npm run mcp` で起動できる状態
+- [Cipher](https://github.com/byterover/cipher) が起動できる状態
 - OpenMemory には `mcp-remote` 経由で接続（SSE / Streamable-HTTP）

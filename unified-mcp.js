@@ -1,24 +1,43 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.2.0)
+ * unified-mcp.js (v0.3.0)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
+ * 環境変数（必須）:
+ *   OPENMEMORY_URL  - OpenMemory SSE endpoint
+ *   CIPHER_CMD      - cipher 実行ファイルパス (macOS: フルパス, Windows: npm.cmd)
+ *   CIPHER_CWD      - cipher 作業ディレクトリ
+ *
+ * 環境変数（任意）:
+ *   NPX_PATH             - npx のフルパス（macOS nodebrew 等）
+ *   CIPHER_AGENT_CONFIG  - cipher --agent 設定ファイルパス（指定時は直接起動、未指定時は npm run mcp）
+ *
  * claude_desktop_config.json 設定例:
+ *
+ * ── macOS ──
  * "unified-memory": {
  *   "command": "node",
- *   "args": ["C:\\path\\to\\unified-mcp.js"],
+ *   "args": ["<path-to>/unified-mcp.js"],
  *   "env": {
- *     "OPENMEMORY_URL": "http://your-openmemory-host:8765/mcp/claude/sse/ubuntu",
- *     "CIPHER_CWD": "C:\\path\\to\\cipher",
+ *     "PATH": "<node-bin-dir>:/usr/local/bin:/usr/bin:/bin",
+ *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+ *     "CIPHER_CMD": "<node-bin-dir>/cipher",
+ *     "CIPHER_CWD": "<path-to>/cipher",
+ *     "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
+ *     "NPX_PATH": "<node-bin-dir>/npx",
+ *     "OPENAI_API_KEY": "sk-proj-..."
+ *   }
+ * }
+ *
+ * ── Windows ──
+ * "unified-memory": {
+ *   "command": "node",
+ *   "args": ["<path-to>\\unified-mcp.js"],
+ *   "env": {
+ *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+ *     "CIPHER_CMD": "npm.cmd",
+ *     "CIPHER_CWD": "<path-to>\\cipher",
  *     "OPENAI_API_KEY": "sk-proj-...",
- *     "CIPHER_LOG_LEVEL": "silent",
- *     "NODE_ENV": "production",
- *     "VECTOR_STORE_TYPE": "qdrant",
- *     "VECTOR_STORE_URL": "http://your-qdrant-host:6333",
- *     "VECTOR_STORE_COLLECTION": "cursor_cipher_memory",
- *     "VECTOR_STORE_DIMENSION": "1536",
- *     "VECTOR_STORE_DISTANCE": "Cosine",
- *     "DISABLE_REFLECTION_MEMORY": "true",
  *     "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32"
  *   }
  * }
@@ -39,14 +58,25 @@ function requireEnv(name) {
   return val;
 }
 
+// NPX_PATH が指定されている場合、そのディレクトリを PATH に追加
+const NPX_PATH = process.env.NPX_PATH || (process.platform === "win32" ? "npx.cmd" : "npx");
+if (process.env.NPX_PATH) {
+  const path = require("path");
+  const binDir = path.dirname(process.env.NPX_PATH);
+  process.env.PATH = binDir + ":" + (process.env.PATH || "");
+  stderr(`[unified-mcp] Added to PATH: ${binDir}`);
+}
+
 const config = {
   openmemory: {
     url: requireEnv("OPENMEMORY_URL"),
-    npx: process.platform === "win32" ? "npx.cmd" : "npx",
+    npx: NPX_PATH,
   },
   cipher: {
-    cmd: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["run", "mcp"],
+    cmd: requireEnv("CIPHER_CMD"),
+    args: process.env.CIPHER_AGENT_CONFIG
+      ? ["--mode", "mcp", "--agent", process.env.CIPHER_AGENT_CONFIG]
+      : ["run", "mcp"],
     cwd: requireEnv("CIPHER_CWD"),
   },
 };
@@ -91,7 +121,10 @@ class StdioMCPClient {
       }
     });
 
-    proc.stderr.on("data", () => {}); // stderr は捨てる
+    proc.stderr.on("data", (d) => stderr(`[${this.name}:stderr] ${d}`));
+    proc.on("error", (err) => {
+      stderr(`[${this.name}] spawn error: ${err.message}`);
+    });
     proc.on("exit", (code) => {
       stderr(`[${this.name}] exited with code ${code}`);
     });
@@ -274,7 +307,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.2.0" },
+        serverInfo: { name: "unified-memory", version: "0.3.0" },
       };
     }
 
