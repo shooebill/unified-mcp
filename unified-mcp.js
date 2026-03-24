@@ -159,7 +159,11 @@ class StdioMCPClient {
       setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
-          reject(new Error(`[${this.name}] timeout: ${method}`));
+          if (this._onTimeout) {
+            this._onTimeout(method, params).then(resolve).catch(reject);
+          } else {
+            reject(new Error(`[${this.name}] timeout: ${method}`));
+          }
         }
       }, 30000);
     });
@@ -177,13 +181,33 @@ class StdioMCPClient {
 class OpenMemoryClient extends StdioMCPClient {
   constructor() {
     super("openmemory");
+    this._start();
+    this._onTimeout = async (method, params) => {
+      stderr("[openmemory] timeout detected, restarting mcp-remote...");
+      this.restart();
+      await this.waitReady();
+      return this.call(method, params);
+    };
+  }
+
+  _start() {
     const proc = spawn(
       config.openmemory.npx,
-      ["-y", "mcp-remote", config.openmemory.url, "--allow-http"],
+      ["-y", "mcp-remote", config.openmemory.url, "--allow-http", "--transport", "sse-only"],
       { env: { ...process.env }, shell: process.platform === "win32" },
     );
     this._attach(proc);
     this._initialize();
+  }
+
+  restart() {
+    this.ready = false;
+    this._onReady = null;
+    if (this.proc) {
+      this.proc.kill();
+      this.proc = null;
+    }
+    this._start();
   }
 
   async addMemory(text) {
@@ -311,7 +335,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.2" },
+        serverInfo: { name: "unified-memory", version: "0.3.4" },
       };
     }
 
