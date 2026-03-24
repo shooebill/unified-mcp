@@ -90,5 +90,5 @@ Node.js のみ必要。`npm install` 不要。
 ## 前提
 
 - [OpenMemory](https://github.com/mem0ai/mem0) が Docker で起動済み
-- [Cipher](https://github.com/byterover/cipher) が起動できる状態
+- [Cipher](https://github.com/campfirein/cipher) が起動できる状態
 - OpenMemory には `mcp-remote` 経由で接続（SSE / Streamable-HTTP）
