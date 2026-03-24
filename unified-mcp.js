@@ -59,7 +59,8 @@ function requireEnv(name) {
 }
 
 // NPX_PATH が指定されている場合、そのディレクトリを PATH に追加
-const NPX_PATH = process.env.NPX_PATH || (process.platform === "win32" ? "npx.cmd" : "npx");
+const NPX_PATH =
+  process.env.NPX_PATH || (process.platform === "win32" ? "npx.cmd" : "npx");
 if (process.env.NPX_PATH) {
   const path = require("path");
   const binDir = path.dirname(process.env.NPX_PATH);
@@ -121,7 +122,9 @@ class StdioMCPClient {
       }
     });
 
-    proc.stderr.on("data", (d) => stderr(`[${this.name}:stderr] ${d.toString().trimEnd()}`));
+    proc.stderr.on("data", (d) =>
+      stderr(`[${this.name}:stderr] ${d.toString().trimEnd()}`),
+    );
     proc.on("error", (err) => {
       stderr(`[${this.name}] spawn error: ${err.message}`);
     });
@@ -268,7 +271,8 @@ class UnifiedMCPServer {
   constructor() {
     this.om = new OpenMemoryClient();
     this.cipher = new CipherClient();
-    this._setup();
+    // OpenMemory の ready を待ってから stdin を受け付ける
+    this.om.waitReady().then(() => this._setup());
   }
 
   _setup() {
@@ -307,7 +311,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.1" },
+        serverInfo: { name: "unified-memory", version: "0.3.2" },
       };
     }
 
