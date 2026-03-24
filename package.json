@@ -1,6 +1,6 @@
 {
   "name": "unified-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "OpenMemory と Cipher を束ねるラッパー MCP サーバー",
   "main": "unified-mcp.js",
   "scripts": {

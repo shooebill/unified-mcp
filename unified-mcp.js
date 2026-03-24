@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.0)
+ * unified-mcp.js (v0.3.1)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -121,7 +121,7 @@ class StdioMCPClient {
       }
     });
 
-    proc.stderr.on("data", (d) => stderr(`[${this.name}:stderr] ${d}`));
+    proc.stderr.on("data", (d) => stderr(`[${this.name}:stderr] ${d.toString().trimEnd()}`));
     proc.on("error", (err) => {
       stderr(`[${this.name}] spawn error: ${err.message}`);
     });
@@ -307,7 +307,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.0" },
+        serverInfo: { name: "unified-memory", version: "0.3.1" },
       };
     }
 
