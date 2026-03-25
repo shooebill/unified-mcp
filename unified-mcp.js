@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.1)
+ * unified-mcp.js (v0.3.5)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -247,10 +247,8 @@ class CipherClient extends StdioMCPClient {
 
   async searchMemory(query) {
     return this.call("tools/call", {
-      name: "ask_cipher",
-      arguments: {
-        message: `以下のキーワードで記憶を検索してください：\n${query}`,
-      },
+      name: "cipher_memory_search",
+      arguments: { query },
     });
   }
 }
@@ -335,7 +333,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.4" },
+        serverInfo: { name: "unified-memory", version: "0.3.5" },
       };
     }
 
@@ -349,10 +347,13 @@ class UnifiedMCPServer {
 
     // tools/call
     if (method === "tools/call") {
+      const t0 = performance.now();
+      stderr(`[TIMER] tools/call received: ${params.name} @ ${new Date().toISOString()}`);
       const { name, arguments: args } = params;
-      return {
-        content: [{ type: "text", text: await this._callTool(name, args) }],
-      };
+      const text = await this._callTool(name, args);
+      const tSend = performance.now();
+      stderr(`[TIMER] response send: +${(tSend - t0).toFixed(0)}ms (total)`);
+      return { content: [{ type: "text", text }] };
     }
 
     // ping
@@ -364,10 +365,20 @@ class UnifiedMCPServer {
   async _callTool(name, args) {
     if (name === "add_memories") {
       const { text } = args;
+      const t0 = performance.now();
+      stderr(`[TIMER] OpenMemory add start: +${(performance.now() - t0).toFixed(0)}ms`);
+      const omPromise = this.om.addMemory(text).finally(() =>
+        stderr(`[TIMER] OpenMemory add done:  +${(performance.now() - t0).toFixed(0)}ms`),
+      );
+      stderr(`[TIMER] Cipher add start:     +${(performance.now() - t0).toFixed(0)}ms`);
+      const cipherPromise = this.cipher.addMemory(text).finally(() =>
+        stderr(`[TIMER] Cipher add done:      +${(performance.now() - t0).toFixed(0)}ms`),
+      );
       const [omResult, cipherResult] = await Promise.allSettled([
-        this.om.addMemory(text),
-        this.cipher.addMemory(text),
+        omPromise,
+        cipherPromise,
       ]);
+      stderr(`[TIMER] allSettled (add):      +${(performance.now() - t0).toFixed(0)}ms`);
 
       const lines = [];
       lines.push(
@@ -385,10 +396,20 @@ class UnifiedMCPServer {
 
     if (name === "search_memory") {
       const { query } = args;
+      const t0 = performance.now();
+      stderr(`[TIMER] OpenMemory search start: +${(performance.now() - t0).toFixed(0)}ms`);
+      const omPromise = this.om.searchMemory(query).finally(() =>
+        stderr(`[TIMER] OpenMemory search done:  +${(performance.now() - t0).toFixed(0)}ms`),
+      );
+      stderr(`[TIMER] Cipher search start:     +${(performance.now() - t0).toFixed(0)}ms`);
+      const cipherPromise = this.cipher.searchMemory(query).finally(() =>
+        stderr(`[TIMER] Cipher search done:      +${(performance.now() - t0).toFixed(0)}ms`),
+      );
       const [omResult, cipherResult] = await Promise.allSettled([
-        this.om.searchMemory(query),
-        this.cipher.searchMemory(query),
+        omPromise,
+        cipherPromise,
       ]);
+      stderr(`[TIMER] allSettled (search):     +${(performance.now() - t0).toFixed(0)}ms`);
 
       let out = "";
 
