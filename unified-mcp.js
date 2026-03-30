@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.5)
+ * unified-mcp.js (v0.3.6)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -175,6 +175,20 @@ class StdioMCPClient {
       this._onReady = resolve;
     });
   }
+
+  destroy() {
+    if (this.proc && this.proc.pid) {
+      stderr(`[${this.name}] destroying child process (pid=${this.proc.pid})`);
+      try {
+        // プロセスグループごと kill（npx 経由の孫プロセスも含む）
+        process.kill(-this.proc.pid, "SIGTERM");
+      } catch {
+        // プロセスグループ kill が失敗した場合は直接 kill
+        try { this.proc.kill(); } catch {}
+      }
+      this.proc = null;
+    }
+  }
 }
 
 // ── OpenMemory クライアント（mcp-remote 経由）─────────────────────────────────
@@ -194,7 +208,7 @@ class OpenMemoryClient extends StdioMCPClient {
     const proc = spawn(
       config.openmemory.npx,
       ["-y", "mcp-remote", config.openmemory.url, "--allow-http", "--transport", "sse-only"],
-      { env: { ...process.env }, shell: process.platform === "win32" },
+      { env: { ...process.env }, shell: process.platform === "win32", detached: true },
     );
     this._attach(proc);
     this._initialize();
@@ -203,10 +217,7 @@ class OpenMemoryClient extends StdioMCPClient {
   restart() {
     this.ready = false;
     this._onReady = null;
-    if (this.proc) {
-      this.proc.kill();
-      this.proc = null;
-    }
+    this.destroy();
     this._start();
   }
 
@@ -233,6 +244,7 @@ class CipherClient extends StdioMCPClient {
       cwd: config.cipher.cwd,
       env: { ...process.env },
       shell: process.platform === "win32",
+      detached: true,
     });
     this._attach(proc);
     this._initialize();
@@ -293,6 +305,11 @@ class UnifiedMCPServer {
   constructor() {
     this.om = new OpenMemoryClient();
     this.cipher = new CipherClient();
+    // stdin が閉じたら親プロセス（disclaimer）が死んだとみなして終了
+    process.stdin.on("end", () => {
+      stderr("[unified-mcp] stdin ended (parent died), exiting...");
+      process.exit(0);
+    });
     // OpenMemory の ready を待ってから stdin を受け付ける
     this.om.waitReady().then(() => this._setup());
   }
@@ -333,7 +350,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.5" },
+        serverInfo: { name: "unified-memory", version: "0.3.6" },
       };
     }
 
@@ -451,4 +468,18 @@ class UnifiedMCPServer {
 }
 
 // ── 起動 ──────────────────────────────────────────────────────────────────────
-new UnifiedMCPServer();
+const server = new UnifiedMCPServer();
+
+// ── 終了ハンドラ（子プロセスのゾンビ化防止）────────────────────────────────────
+let cleanedUp = false;
+function cleanup() {
+  if (cleanedUp) return;
+  cleanedUp = true;
+  stderr("[unified-mcp] cleanup: killing child processes...");
+  server.om.destroy();
+  server.cipher.destroy();
+}
+
+process.on("SIGTERM", () => { cleanup(); process.exit(0); });
+process.on("SIGINT",  () => { cleanup(); process.exit(0); });
+process.on("exit",    () => { cleanup(); });
