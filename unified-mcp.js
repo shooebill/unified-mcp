@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.6)
+ * unified-mcp.js (v0.3.7)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -212,13 +212,35 @@ class OpenMemoryClient extends StdioMCPClient {
     );
     this._attach(proc);
     this._initialize();
+    this._startKeepalive();
   }
 
   restart() {
     this.ready = false;
     this._onReady = null;
+    this._stopKeepalive();
     this.destroy();
     this._start();
+  }
+
+  // SSE セッション維持のため定期的に ping を送信（5分間隔）
+  _startKeepalive() {
+    this._stopKeepalive();
+    this._keepaliveTimer = setInterval(() => {
+      if (!this.ready) return;
+      this.call("ping").then(() => {
+        stderr(`${new Date().toISOString()} [openmemory] keepalive ping ok`);
+      }).catch((err) => {
+        stderr(`${new Date().toISOString()} [openmemory] keepalive ping failed: ${err.message}`);
+      });
+    }, 5 * 60 * 1000);
+  }
+
+  _stopKeepalive() {
+    if (this._keepaliveTimer) {
+      clearInterval(this._keepaliveTimer);
+      this._keepaliveTimer = null;
+    }
   }
 
   async addMemory(text) {
@@ -350,7 +372,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.6" },
+        serverInfo: { name: "unified-memory", version: "0.3.7" },
       };
     }
 
