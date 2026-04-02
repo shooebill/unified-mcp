@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.7)
+ * unified-mcp.js (v0.3.8)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -64,7 +64,7 @@ const NPX_PATH =
 if (process.env.NPX_PATH) {
   const path = require("path");
   const binDir = path.dirname(process.env.NPX_PATH);
-  process.env.PATH = binDir + ":" + (process.env.PATH || "");
+  process.env.PATH = `${binDir}:${process.env.PATH || ""}`;
   stderr(`[unified-mcp] Added to PATH: ${binDir}`);
 }
 
@@ -134,7 +134,7 @@ class StdioMCPClient {
   }
 
   _send(obj) {
-    this.proc.stdin.write(JSON.stringify(obj) + "\n");
+    this.proc.stdin.write(`${JSON.stringify(obj)}\n`);
   }
 
   _initialize() {
@@ -177,14 +177,16 @@ class StdioMCPClient {
   }
 
   destroy() {
-    if (this.proc && this.proc.pid) {
+    if (this.proc?.pid) {
       stderr(`[${this.name}] destroying child process (pid=${this.proc.pid})`);
       try {
         // プロセスグループごと kill（npx 経由の孫プロセスも含む）
         process.kill(-this.proc.pid, "SIGTERM");
       } catch {
         // プロセスグループ kill が失敗した場合は直接 kill
-        try { this.proc.kill(); } catch {}
+        try {
+          this.proc.kill();
+        } catch {}
       }
       this.proc = null;
     }
@@ -207,8 +209,19 @@ class OpenMemoryClient extends StdioMCPClient {
   _start() {
     const proc = spawn(
       config.openmemory.npx,
-      ["-y", "mcp-remote", config.openmemory.url, "--allow-http", "--transport", "sse-only"],
-      { env: { ...process.env }, shell: process.platform === "win32", detached: true },
+      [
+        "-y",
+        "mcp-remote",
+        config.openmemory.url,
+        "--allow-http",
+        "--transport",
+        "sse-only",
+      ],
+      {
+        env: { ...process.env },
+        shell: process.platform === "win32",
+        detached: true,
+      },
     );
     this._attach(proc);
     this._initialize();
@@ -226,14 +239,23 @@ class OpenMemoryClient extends StdioMCPClient {
   // SSE セッション維持のため定期的に ping を送信（5分間隔）
   _startKeepalive() {
     this._stopKeepalive();
-    this._keepaliveTimer = setInterval(() => {
-      if (!this.ready) return;
-      this.call("ping").then(() => {
-        stderr(`${new Date().toISOString()} [openmemory] keepalive ping ok`);
-      }).catch((err) => {
-        stderr(`${new Date().toISOString()} [openmemory] keepalive ping failed: ${err.message}`);
-      });
-    }, 5 * 60 * 1000);
+    this._keepaliveTimer = setInterval(
+      () => {
+        if (!this.ready) return;
+        this.call("ping")
+          .then(() => {
+            stderr(
+              `${new Date().toISOString()} [openmemory] keepalive ping ok`,
+            );
+          })
+          .catch((err) => {
+            stderr(
+              `${new Date().toISOString()} [openmemory] keepalive ping failed: ${err.message}`,
+            );
+          });
+      },
+      5 * 60 * 1000,
+    );
   }
 
   _stopKeepalive() {
@@ -315,11 +337,11 @@ const TOOLS = [
 
 // ── ユーティリティ ────────────────────────────────────────────────────────────
 function stderr(...args) {
-  process.stderr.write(args.join(" ") + "\n");
+  process.stderr.write(`${args.join(" ")}\n`);
 }
 
 function sendResponse(obj) {
-  process.stdout.write(JSON.stringify(obj) + "\n");
+  process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
 // ── メインサーバー ────────────────────────────────────────────────────────────
@@ -365,14 +387,14 @@ class UnifiedMCPServer {
   }
 
   async _handle(req) {
-    const { method, params, id } = req;
+    const { method, params } = req;
 
     // initialize
     if (method === "initialize") {
       return {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.7" },
+        serverInfo: { name: "unified-memory", version: "0.3.8" },
       };
     }
 
@@ -387,7 +409,9 @@ class UnifiedMCPServer {
     // tools/call
     if (method === "tools/call") {
       const t0 = performance.now();
-      stderr(`[TIMER] tools/call received: ${params.name} @ ${new Date().toISOString()}`);
+      stderr(
+        `[TIMER] tools/call received: ${params.name} @ ${new Date().toISOString()}`,
+      );
       const { name, arguments: args } = params;
       const text = await this._callTool(name, args);
       const tSend = performance.now();
@@ -405,19 +429,33 @@ class UnifiedMCPServer {
     if (name === "add_memories") {
       const { text } = args;
       const t0 = performance.now();
-      stderr(`[TIMER] OpenMemory add start: +${(performance.now() - t0).toFixed(0)}ms`);
-      const omPromise = this.om.addMemory(text).finally(() =>
-        stderr(`[TIMER] OpenMemory add done:  +${(performance.now() - t0).toFixed(0)}ms`),
+      stderr(
+        `[TIMER] OpenMemory add start: +${(performance.now() - t0).toFixed(0)}ms`,
       );
-      stderr(`[TIMER] Cipher add start:     +${(performance.now() - t0).toFixed(0)}ms`);
-      const cipherPromise = this.cipher.addMemory(text).finally(() =>
-        stderr(`[TIMER] Cipher add done:      +${(performance.now() - t0).toFixed(0)}ms`),
+      const omPromise = this.om
+        .addMemory(text)
+        .finally(() =>
+          stderr(
+            `[TIMER] OpenMemory add done:  +${(performance.now() - t0).toFixed(0)}ms`,
+          ),
+        );
+      stderr(
+        `[TIMER] Cipher add start:     +${(performance.now() - t0).toFixed(0)}ms`,
       );
+      const cipherPromise = this.cipher
+        .addMemory(text)
+        .finally(() =>
+          stderr(
+            `[TIMER] Cipher add done:      +${(performance.now() - t0).toFixed(0)}ms`,
+          ),
+        );
       const [omResult, cipherResult] = await Promise.allSettled([
         omPromise,
         cipherPromise,
       ]);
-      stderr(`[TIMER] allSettled (add):      +${(performance.now() - t0).toFixed(0)}ms`);
+      stderr(
+        `[TIMER] allSettled (add):      +${(performance.now() - t0).toFixed(0)}ms`,
+      );
 
       const lines = [];
       lines.push(
@@ -436,19 +474,33 @@ class UnifiedMCPServer {
     if (name === "search_memory") {
       const { query } = args;
       const t0 = performance.now();
-      stderr(`[TIMER] OpenMemory search start: +${(performance.now() - t0).toFixed(0)}ms`);
-      const omPromise = this.om.searchMemory(query).finally(() =>
-        stderr(`[TIMER] OpenMemory search done:  +${(performance.now() - t0).toFixed(0)}ms`),
+      stderr(
+        `[TIMER] OpenMemory search start: +${(performance.now() - t0).toFixed(0)}ms`,
       );
-      stderr(`[TIMER] Cipher search start:     +${(performance.now() - t0).toFixed(0)}ms`);
-      const cipherPromise = this.cipher.searchMemory(query).finally(() =>
-        stderr(`[TIMER] Cipher search done:      +${(performance.now() - t0).toFixed(0)}ms`),
+      const omPromise = this.om
+        .searchMemory(query)
+        .finally(() =>
+          stderr(
+            `[TIMER] OpenMemory search done:  +${(performance.now() - t0).toFixed(0)}ms`,
+          ),
+        );
+      stderr(
+        `[TIMER] Cipher search start:     +${(performance.now() - t0).toFixed(0)}ms`,
       );
+      const cipherPromise = this.cipher
+        .searchMemory(query)
+        .finally(() =>
+          stderr(
+            `[TIMER] Cipher search done:      +${(performance.now() - t0).toFixed(0)}ms`,
+          ),
+        );
       const [omResult, cipherResult] = await Promise.allSettled([
         omPromise,
         cipherPromise,
       ]);
-      stderr(`[TIMER] allSettled (search):     +${(performance.now() - t0).toFixed(0)}ms`);
+      stderr(
+        `[TIMER] allSettled (search):     +${(performance.now() - t0).toFixed(0)}ms`,
+      );
 
       let out = "";
 
@@ -502,6 +554,14 @@ function cleanup() {
   server.cipher.destroy();
 }
 
-process.on("SIGTERM", () => { cleanup(); process.exit(0); });
-process.on("SIGINT",  () => { cleanup(); process.exit(0); });
-process.on("exit",    () => { cleanup(); });
+process.on("SIGTERM", () => {
+  cleanup();
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  cleanup();
+  process.exit(0);
+});
+process.on("exit", () => {
+  cleanup();
+});
