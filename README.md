@@ -113,8 +113,8 @@ Cipher aggregator モードには `MCP_SERVER_MODE` と `USE_ASK_CIPHER` が必�
 | `OPENAI_API_KEY` | Cipher が使う OpenAI API キー | ✅ |
 | `NPX_PATH` | npx のフルパス（macOS でPATH が通らない場合） | |
 | `CIPHER_AGENT_CONFIG` | cipher.yml のパス（指定時は直接起動） | |
-| `MCP_SERVER_MODE` | Cipher サーバーモード（`aggregator` で全ツール公開） | |
-| `USE_ASK_CIPHER` | `true` で ask_cipher ツールを有効化 | |
+| `MCP_SERVER_MODE` | Cipher サーバーモード（`aggregator` で全ツール公開） | ✅ |
+| `USE_ASK_CIPHER` | `true` で ask_cipher ツールを有効化 | ✅ |
 
 ## ツール
 

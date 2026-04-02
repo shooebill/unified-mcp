@@ -7,6 +7,8 @@
  *   OPENMEMORY_URL  - OpenMemory Streamable HTTP endpoint
  *   CIPHER_CMD      - cipher 実行ファイルパス (macOS: フルパス, Windows: npm.cmd)
  *   CIPHER_CWD      - cipher 作業ディレクトリ
+ *   MCP_SERVER_MODE - Cipher サーバーモード（aggregator）
+ *   USE_ASK_CIPHER  - ask_cipher ツール有効化（true）
  *
  * 環境変数（任意）:
  *   NPX_PATH             - npx のフルパス（macOS nodebrew 等）
@@ -81,6 +83,10 @@ const config = {
     cwd: requireEnv("CIPHER_CWD"),
   },
 };
+
+// Cipher aggregator モードに必要な環境変数
+requireEnv("MCP_SERVER_MODE");
+requireEnv("USE_ASK_CIPHER");
 
 // ── MCPクライアント基底クラス（stdio JSON-RPC）─────────────────────────────────
 class StdioMCPClient {
