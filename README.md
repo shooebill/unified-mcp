@@ -38,7 +38,9 @@ npm install
         "CIPHER_CWD": "<path-to>/cipher",
         "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
         "NPX_PATH": "<node-bin-dir>/npx",
-        "OPENAI_API_KEY": "sk-proj-..."
+        "OPENAI_API_KEY": "sk-proj-...",
+        "MCP_SERVER_MODE": "aggregator",
+        "USE_ASK_CIPHER": "true"
       }
     }
   }
@@ -62,6 +64,8 @@ npm install
         "CIPHER_CMD": "npm.cmd",
         "CIPHER_CWD": "<path-to>\\cipher",
         "OPENAI_API_KEY": "sk-proj-...",
+        "MCP_SERVER_MODE": "aggregator",
+        "USE_ASK_CIPHER": "true",
         "PATH": "C:\\Program Files\\nodejs;C:\\Windows\\System32"
       }
     }
