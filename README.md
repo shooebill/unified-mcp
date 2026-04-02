@@ -71,6 +71,34 @@ npm install
 
 - `CIPHER_AGENT_CONFIG` 未指定時は `npm run mcp` で起動（Windows 向け）
 
+#### Claude Code
+
+`~/.claude.json` の `mcpServers` に追加する。
+Cipher aggregator モードには `MCP_SERVER_MODE` と `USE_ASK_CIPHER` が必要。
+
+```json
+{
+  "mcpServers": {
+    "unified-memory": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["<path-to>/unified-mcp.js"],
+      "env": {
+        "PATH": "<node-bin-dir>:/usr/local/bin:/usr/bin:/bin",
+        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/http/ubuntu",
+        "CIPHER_CMD": "<node-bin-dir>/cipher",
+        "CIPHER_CWD": "<path-to>/cipher",
+        "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
+        "NPX_PATH": "<node-bin-dir>/npx",
+        "OPENAI_API_KEY": "sk-proj-...",
+        "MCP_SERVER_MODE": "aggregator",
+        "USE_ASK_CIPHER": "true"
+      }
+    }
+  }
+}
+```
+
 ### 3. 環境変数
 
 | 変数 | 説明 | 必須 |
@@ -81,6 +109,8 @@ npm install
 | `OPENAI_API_KEY` | Cipher が使う OpenAI API キー | ✅ |
 | `NPX_PATH` | npx のフルパス（macOS でPATH が通らない場合） | |
 | `CIPHER_AGENT_CONFIG` | cipher.yml のパス（指定時は直接起動） | |
+| `MCP_SERVER_MODE` | Cipher サーバーモード（`aggregator` で全ツール公開） | |
+| `USE_ASK_CIPHER` | `true` で ask_cipher ツールを有効化 | |
 
 ## ツール
 
