@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.3.8)
+ * unified-mcp.js (v0.4.0)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
- *   OPENMEMORY_URL  - OpenMemory SSE endpoint
+ *   OPENMEMORY_URL  - OpenMemory Streamable HTTP endpoint
  *   CIPHER_CMD      - cipher 実行ファイルパス (macOS: フルパス, Windows: npm.cmd)
  *   CIPHER_CWD      - cipher 作業ディレクトリ
  *
@@ -20,7 +20,7 @@
  *   "args": ["<path-to>/unified-mcp.js"],
  *   "env": {
  *     "PATH": "<node-bin-dir>:/usr/local/bin:/usr/bin:/bin",
- *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+ *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/http/ubuntu",
  *     "CIPHER_CMD": "<node-bin-dir>/cipher",
  *     "CIPHER_CWD": "<path-to>/cipher",
  *     "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
@@ -34,7 +34,7 @@
  *   "command": "node",
  *   "args": ["<path-to>\\unified-mcp.js"],
  *   "env": {
- *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+ *     "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/http/ubuntu",
  *     "CIPHER_CMD": "npm.cmd",
  *     "CIPHER_CWD": "<path-to>\\cipher",
  *     "OPENAI_API_KEY": "sk-proj-...",
@@ -193,7 +193,7 @@ class StdioMCPClient {
   }
 }
 
-// ── OpenMemory クライアント（mcp-remote 経由）─────────────────────────────────
+// ── OpenMemory クライアント（mcp-remote 経由 Streamable HTTP）─────────────────────────────────
 class OpenMemoryClient extends StdioMCPClient {
   constructor() {
     super("openmemory");
@@ -215,7 +215,7 @@ class OpenMemoryClient extends StdioMCPClient {
         config.openmemory.url,
         "--allow-http",
         "--transport",
-        "sse-only",
+        "http-only",
       ],
       {
         env: { ...process.env },
@@ -225,44 +225,13 @@ class OpenMemoryClient extends StdioMCPClient {
     );
     this._attach(proc);
     this._initialize();
-    this._startKeepalive();
   }
 
   restart() {
     this.ready = false;
     this._onReady = null;
-    this._stopKeepalive();
     this.destroy();
     this._start();
-  }
-
-  // SSE セッション維持のため定期的に ping を送信（5分間隔）
-  _startKeepalive() {
-    this._stopKeepalive();
-    this._keepaliveTimer = setInterval(
-      () => {
-        if (!this.ready) return;
-        this.call("ping")
-          .then(() => {
-            stderr(
-              `${new Date().toISOString()} [openmemory] keepalive ping ok`,
-            );
-          })
-          .catch((err) => {
-            stderr(
-              `${new Date().toISOString()} [openmemory] keepalive ping failed: ${err.message}`,
-            );
-          });
-      },
-      5 * 60 * 1000,
-    );
-  }
-
-  _stopKeepalive() {
-    if (this._keepaliveTimer) {
-      clearInterval(this._keepaliveTimer);
-      this._keepaliveTimer = null;
-    }
   }
 
   async addMemory(text) {
@@ -394,7 +363,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.3.8" },
+        serverInfo: { name: "unified-memory", version: "0.4.0" },
       };
     }
 
