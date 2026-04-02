@@ -9,15 +9,17 @@ OpenMemory と Cipher を束ねるラッパー MCP サーバー。
 Claude Desktop (stdio)
     ↓
 unified-mcp.js
-    ├→ OpenMemory（mcp-remote → localhost:8765）
+    ├→ OpenMemory（mcp-remote Streamable HTTP → localhost:8765）
     └→ Cipher（stdio）
 ```
 
 ## セットアップ
 
-### 1. 依存なし
+### 1. 依存インストール
 
-Node.js のみ必要。`npm install` 不要。
+```bash
+npm install
+```
 
 ### 2. claude_desktop_config.json
 
@@ -31,7 +33,7 @@ Node.js のみ必要。`npm install` 不要。
       "args": ["<path-to>/unified-mcp.js"],
       "env": {
         "PATH": "<node-bin-dir>:/usr/local/bin:/usr/bin:/bin",
-        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/http/ubuntu",
         "CIPHER_CMD": "<node-bin-dir>/cipher",
         "CIPHER_CWD": "<path-to>/cipher",
         "CIPHER_AGENT_CONFIG": "<path-to>/cipher.yml",
@@ -56,7 +58,7 @@ Node.js のみ必要。`npm install` 不要。
       "command": "node",
       "args": ["<path-to>\\unified-mcp.js"],
       "env": {
-        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/sse/ubuntu",
+        "OPENMEMORY_URL": "http://localhost:8765/mcp/claude/http/ubuntu",
         "CIPHER_CMD": "npm.cmd",
         "CIPHER_CWD": "<path-to>\\cipher",
         "OPENAI_API_KEY": "sk-proj-...",
@@ -91,4 +93,4 @@ Node.js のみ必要。`npm install` 不要。
 
 - [OpenMemory](https://github.com/mem0ai/mem0) が Docker で起動済み
 - [Cipher](https://github.com/campfirein/cipher) が起動できる状態
-- OpenMemory には `mcp-remote` 経由で接続（SSE / Streamable-HTTP）
+- OpenMemory には `mcp-remote` 経由で Streamable HTTP 接続
