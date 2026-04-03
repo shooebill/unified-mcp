@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.4.0)
+ * unified-mcp.js (v0.4.1)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -161,17 +161,6 @@ class StdioMCPClient {
       const id = this.nextId++;
       this.pending.set(id, { resolve, reject });
       this._send({ jsonrpc: "2.0", id, method, params });
-      // タイムアウト 30s
-      setTimeout(() => {
-        if (this.pending.has(id)) {
-          this.pending.delete(id);
-          if (this._onTimeout) {
-            this._onTimeout(method, params).then(resolve).catch(reject);
-          } else {
-            reject(new Error(`[${this.name}] timeout: ${method}`));
-          }
-        }
-      }, 30000);
     });
   }
 
@@ -204,12 +193,6 @@ class OpenMemoryClient extends StdioMCPClient {
   constructor() {
     super("openmemory");
     this._start();
-    this._onTimeout = async (method, params) => {
-      stderr("[openmemory] timeout detected, restarting mcp-remote...");
-      this.restart();
-      await this.waitReady();
-      return this.call(method, params);
-    };
   }
 
   _start() {
@@ -233,6 +216,7 @@ class OpenMemoryClient extends StdioMCPClient {
     this._initialize();
   }
 
+  /** @deprecated タイムアウト自動再起動を廃止したため未使用 */
   restart() {
     this.ready = false;
     this._onReady = null;
@@ -369,7 +353,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.4.0" },
+        serverInfo: { name: "unified-memory", version: "0.4.1" },
       };
     }
 
