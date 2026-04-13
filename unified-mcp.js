@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.4.1)
+ * unified-mcp.js (v0.5.0)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -308,16 +308,19 @@ class UnifiedMCPServer {
   constructor() {
     this.om = new OpenMemoryClient();
     this.cipher = new CipherClient();
-    // stdin が閉じたら親プロセス（disclaimer）が死んだとみなして終了
+  }
+
+  startStdio() {
+    // stdin が閉じたら親プロセスが死んだとみなして終了
     process.stdin.on("end", () => {
       stderr("[unified-mcp] stdin ended (parent died), exiting...");
       process.exit(0);
     });
     // OpenMemory の ready を待ってから stdin を受け付ける
-    this.om.waitReady().then(() => this._setup());
+    this.om.waitReady().then(() => this._setupStdio());
   }
 
-  _setup() {
+  _setupStdio() {
     const rl = readline.createInterface({ input: process.stdin });
     rl.on("line", async (line) => {
       line = line.trim();
@@ -345,6 +348,63 @@ class UnifiedMCPServer {
     });
   }
 
+  startHttp(port) {
+    const http = require("http");
+    const httpServer = http.createServer(async (req, res) => {
+      if (req.method !== "POST" || req.url !== "/mcp") {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Not Found" }));
+        return;
+      }
+
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = Buffer.concat(chunks).toString();
+
+      let jsonReq;
+      try {
+        jsonReq = JSON.parse(body);
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32700, message: "Parse error" },
+          }),
+        );
+        return;
+      }
+
+      // notifications/initialized は応答不要だが HTTP では 204 を返す
+      try {
+        const result = await this._handle(jsonReq);
+        if (result === undefined) {
+          res.writeHead(204);
+          res.end();
+        } else {
+          const response = { jsonrpc: "2.0", id: jsonReq.id, result };
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(response));
+        }
+      } catch (err) {
+        const response = {
+          jsonrpc: "2.0",
+          id: jsonReq.id,
+          error: { code: -32603, message: err.message },
+        };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(response));
+      }
+    });
+
+    this.om.waitReady().then(() => {
+      httpServer.listen(port, () => {
+        stderr(`[unified-mcp] HTTP server listening on port ${port}`);
+      });
+    });
+  }
+
   async _handle(req) {
     const { method, params } = req;
 
@@ -353,7 +413,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.4.1" },
+        serverInfo: { name: "unified-memory", version: "0.5.0" },
       };
     }
 
@@ -427,6 +487,7 @@ class UnifiedMCPServer {
           ? "【Cipher】✅ 保存完了"
           : `【Cipher】❌ ${cipherResult.reason?.message}`,
       );
+      lines.push(`\n--- 保存テキスト ---\n${text}`);
       return lines.join("\n");
     }
 
@@ -501,7 +562,17 @@ class UnifiedMCPServer {
 }
 
 // ── 起動 ──────────────────────────────────────────────────────────────────────
+const args = process.argv.slice(2);
+const httpMode = args.includes("--http");
 const server = new UnifiedMCPServer();
+
+if (httpMode) {
+  const portIdx = args.indexOf("--port");
+  const port = portIdx !== -1 ? Number(args[portIdx + 1]) : 3000;
+  server.startHttp(port);
+} else {
+  server.startStdio();
+}
 
 // ── 終了ハンドラ（子プロセスのゾンビ化防止）────────────────────────────────────
 let cleanedUp = false;
