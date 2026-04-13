@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.5.0)
+ * unified-mcp.js (v0.5.1)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -209,7 +209,6 @@ class OpenMemoryClient extends StdioMCPClient {
       {
         env: { ...process.env },
         shell: process.platform === "win32",
-        detached: true,
       },
     );
     this._attach(proc);
@@ -247,7 +246,6 @@ class CipherClient extends StdioMCPClient {
       cwd: config.cipher.cwd,
       env: { ...process.env },
       shell: process.platform === "win32",
-      detached: true,
     });
     this._attach(proc);
     this._initialize();
@@ -413,7 +411,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.5.0" },
+        serverInfo: { name: "unified-memory", version: "0.5.1" },
       };
     }
 
