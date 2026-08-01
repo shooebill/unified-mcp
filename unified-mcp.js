@@ -389,11 +389,11 @@ class UnifiedMCPServer {
         return;
       }
 
-      // notifications/initialized は応答不要だが HTTP では 204 を返す
+      // notifications/initialized は応答不要だが HTTP では 202 を返す（本文なし）
       try {
         const result = await this._handle(jsonReq);
         if (result === undefined) {
-          res.writeHead(204);
+          res.writeHead(202);
           res.end();
         } else {
           const response = { jsonrpc: "2.0", id: jsonReq.id, result };
@@ -424,7 +424,7 @@ class UnifiedMCPServer {
     // initialize
     if (method === "initialize") {
       return {
-        protocolVersion: "2025-11-25",
+        protocolVersion: params?.protocolVersion || "2025-11-25",
         capabilities: { tools: {} },
         serverInfo: { name: "unified-memory", version: "0.5.1" },
       };
