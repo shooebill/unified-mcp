@@ -349,6 +349,21 @@ class UnifiedMCPServer {
   startHttp(port) {
     const http = require("http");
     const httpServer = http.createServer(async (req, res) => {
+      // CORS共通ヘッダー（全レスポンスに付与）
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Mcp-Session-Id, Accept",
+      );
+
+      // プリフライトリクエストへの対応
+      if (req.method === "OPTIONS" && req.url === "/mcp") {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
       if (req.method !== "POST" || req.url !== "/mcp") {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Not Found" }));
