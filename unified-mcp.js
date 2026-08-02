@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified-mcp.js (v0.5.1)
+ * unified-mcp.js (v0.5.2)
  * OpenMemory（mcp-remote経由）と Cipher（stdio）を束ねるラッパーMCP
  *
  * 環境変数（必須）:
@@ -426,7 +426,7 @@ class UnifiedMCPServer {
       return {
         protocolVersion: params?.protocolVersion || "2025-11-25",
         capabilities: { tools: {} },
-        serverInfo: { name: "unified-memory", version: "0.5.1" },
+        serverInfo: { name: "unified-memory", version: "0.5.2" },
       };
     }
 
