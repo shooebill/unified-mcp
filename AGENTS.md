@@ -19,8 +19,12 @@ OpenMemory と Cipher を束ねるラッパー MCP サーバー（Node.js）。
 
 ## Environment Variables
 
-必須: `OPENMEMORY_URL`, `CIPHER_CMD`, `CIPHER_CWD`
+必須: `OPENMEMORY_URL`, `CIPHER_CMD`, `CIPHER_CWD`, `MCP_SERVER_MODE`, `USE_ASK_CIPHER`
 任意: `NPX_PATH`, `CIPHER_AGENT_CONFIG`
+
+## Agent Memory
+
+- このプロジェクトは unified-memory MCP サーバーを使用している。コードベースやユーザーの好みについて重要なことを学んだら `add_memories` で保存し、複雑なタスクの開始時には `search_memory` で過去のコンテキストを検索すること
 
 ## Workflow
 
